@@ -1,0 +1,62 @@
+:root {
+  --sage: oklch(0.46 0.06 138);
+  --sage-hover: oklch(0.40 0.07 138);
+  --sage-press: oklch(0.36 0.07 138);
+  --sage-on: oklch(0.99 0.005 95);
+
+  --paper: oklch(0.95 0.014 85);
+  --surface: oklch(0.995 0.003 80);
+  --surface-sunk: oklch(0.92 0.012 85);
+  --surface-highlight: oklch(0.98 0.008 85);
+  --border: oklch(0.90 0.005 80);
+  --border-strong: oklch(0.76 0.006 80);
+  --ink: oklch(0.18 0.005 80);
+  --ink-secondary: oklch(0.45 0.006 80);
+  --ink-muted: oklch(0.60 0.006 80);
+
+  --warning: oklch(0.72 0.14 60);
+  --danger: oklch(0.58 0.22 25);
+  --focus: oklch(0.30 0.012 80);
+
+  --font-display: 'Geist', 'GT Walsheim', 'Söhne', system-ui, sans-serif;
+  --font-body: 'Inter', 'Geist Sans', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --motion-instant: 100ms;
+  --motion-quick: 180ms;
+  --motion-base: 240ms;
+  --motion-page: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.64, 0, 0.78, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+
+  --shadow-sm: 0 1px 2px oklch(0.18 0.01 138 / 0.06);
+  --shadow-md: 0 4px 16px -2px oklch(0.18 0.01 138 / 0.08), 0 2px 4px oklch(0.18 0.01 138 / 0.04);
+  --shadow-pop: 0 8px 24px -4px oklch(0.46 0.06 138 / 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sage: oklch(0.62 0.07 138);
+    --sage-hover: oklch(0.68 0.08 138);
+    --sage-press: oklch(0.56 0.07 138);
+    --sage-on: oklch(0.14 0.01 138);
+
+    --paper: oklch(0.13 0.006 80);
+    --surface: oklch(0.20 0.005 80);
+    --surface-sunk: oklch(0.10 0.005 80);
+    --surface-highlight: oklch(0.24 0.008 80);
+    --border: oklch(0.28 0.008 80);
+    --border-strong: oklch(0.42 0.010 80);
+    --ink: oklch(0.96 0.005 85);
+    --ink-secondary: oklch(0.75 0.005 80);
+    --ink-muted: oklch(0.58 0.008 80);
+
+    --focus: oklch(0.85 0.008 80);
+  }
+}

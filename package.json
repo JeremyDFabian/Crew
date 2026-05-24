@@ -1,0 +1,16 @@
+{
+  "name": "crew",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Crew — study session scheduling for high schoolers.",
+  "scripts": {
+    "setup": "npm --prefix server install && npm --prefix client install && python -m venv matching-service\\.venv && matching-service\\.venv\\Scripts\\pip install -r matching-service\\requirements.txt",
+    "dev": "concurrently -k -n server,matching,client -c blue,magenta,cyan \"npm --prefix server run dev\" \"matching-service\\.venv\\Scripts\\python matching-service\\app.py\" \"npm --prefix client run dev\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:matching": "matching-service\\.venv\\Scripts\\python matching-service\\app.py",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
