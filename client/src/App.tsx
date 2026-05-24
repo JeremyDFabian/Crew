@@ -7,6 +7,8 @@ import { SessionCard } from './components/SessionCard'
 import type { Tier } from './components/SessionCard'
 import { Button } from './components/Button'
 import { minutesUntil, isToday } from './lib/timeFormat'
+import { Onboarding } from './onboarding/Onboarding'
+import { loadProfile } from './onboarding/storage'
 import './styles/dashboard.css'
 
 type LoadState =
@@ -22,6 +24,9 @@ function tierFor(s: Session): Tier {
 }
 
 export function App() {
+  const [hasProfile, setHasProfile] = useState<boolean>(
+    () => loadProfile() !== null,
+  )
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
 
   async function load() {
@@ -35,8 +40,12 @@ export function App() {
   }
 
   useEffect(() => {
-    load()
-  }, [])
+    if (hasProfile) load()
+  }, [hasProfile])
+
+  if (!hasProfile) {
+    return <Onboarding onComplete={() => setHasProfile(true)} />
+  }
 
   return (
     <div className="dashboard">

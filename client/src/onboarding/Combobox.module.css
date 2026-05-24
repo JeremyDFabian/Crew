@@ -1,0 +1,150 @@
+.root {
+  position: relative;
+  width: 100%;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--surface-sunk);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  outline: none;
+  transition:
+    border-color var(--motion-instant) var(--ease-out),
+    box-shadow var(--motion-quick) var(--ease-out);
+}
+
+.input::placeholder {
+  color: var(--ink-muted);
+}
+
+.input:hover {
+  border-color: var(--border-strong);
+}
+
+.input:focus-visible,
+.input[aria-expanded='true'] {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 4px oklch(0.30 0.012 80 / 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .input:focus-visible,
+  .input[aria-expanded='true'] {
+    box-shadow: 0 0 0 4px oklch(0.85 0.008 80 / 0.16);
+  }
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  max-height: 280px;
+  overflow-y: auto;
+  animation: comboboxIn var(--motion-quick) var(--ease-out);
+}
+
+.option {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--motion-instant) var(--ease-out);
+}
+
+.optionActive {
+  background: var(--surface-sunk);
+}
+
+.empty {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: 14px 16px;
+  animation: comboboxIn var(--motion-quick) var(--ease-out);
+}
+
+.emptyText {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}
+
+.emptyAction {
+  background: transparent;
+  border: 1.5px solid var(--border-strong);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    background var(--motion-instant) var(--ease-out),
+    border-color var(--motion-instant) var(--ease-out);
+}
+
+.emptyAction:hover {
+  background: var(--surface-sunk);
+  border-color: var(--ink-muted);
+}
+
+.emptyAction:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes comboboxIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list,
+  .empty {
+    animation: none;
+  }
+  .input {
+    transition: none;
+  }
+}
