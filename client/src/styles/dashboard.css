@@ -115,3 +115,35 @@
   max-width: 36ch;
   font-size: 15px;
 }
+
+.card-wrap {
+  display: contents;
+}
+
+.card-just-added {
+  display: block;
+  animation: cardJustAdded 2.4s var(--ease-out) both;
+  border-radius: var(--r-xl);
+}
+
+@keyframes cardJustAdded {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+    background: var(--surface-highlight);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+    background: var(--surface-highlight);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-just-added {
+    animation: none;
+  }
+}

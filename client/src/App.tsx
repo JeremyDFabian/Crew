@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { CURRENT_USER, getSessions } from './mocks/sessions'
-import type { Session } from './mocks/sessions'
+import { useEffect, useMemo, useState } from 'react'
+import { getSessions } from './mocks/sessions'
+import type { Member, Session } from './mocks/sessions'
 import { Hero } from './components/Hero'
 import { TopBar } from './components/TopBar'
 import { SessionCard } from './components/SessionCard'
@@ -9,6 +9,8 @@ import { Button } from './components/Button'
 import { minutesUntil, isToday } from './lib/timeFormat'
 import { Onboarding } from './onboarding/Onboarding'
 import { loadProfile } from './onboarding/storage'
+import { Propose } from './propose/Propose'
+import { useCurrentUser } from './hooks/useCurrentUser'
 import './styles/dashboard.css'
 
 type LoadState =
@@ -27,7 +29,10 @@ export function App() {
   const [hasProfile, setHasProfile] = useState<boolean>(
     () => loadProfile() !== null,
   )
+  const currentUser = useCurrentUser()
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
+  const [proposeOpen, setProposeOpen] = useState(false)
+  const [newIds, setNewIds] = useState<Set<string>>(new Set())
 
   async function load() {
     setState({ kind: 'loading' })
@@ -43,14 +48,52 @@ export function App() {
     if (hasProfile) load()
   }, [hasProfile])
 
+  function handleSessionCreated(s: Session) {
+    setState((prev) =>
+      prev.kind === 'ready'
+        ? { kind: 'ready', sessions: [s, ...prev.sessions] }
+        : { kind: 'ready', sessions: [s] },
+    )
+    setNewIds((prev) => {
+      const next = new Set(prev)
+      next.add(s.id)
+      return next
+    })
+    window.setTimeout(() => {
+      setNewIds((prev) => {
+        const next = new Set(prev)
+        next.delete(s.id)
+        return next
+      })
+    }, 2400)
+  }
+
   if (!hasProfile) {
     return <Onboarding onComplete={() => setHasProfile(true)} />
   }
 
+  if (proposeOpen) {
+    return (
+      <Propose
+        onClose={() => setProposeOpen(false)}
+        onCreate={handleSessionCreated}
+      />
+    )
+  }
+
   return (
     <div className="dashboard">
-      <TopBar user={CURRENT_USER} hasUnread />
-      <Body state={state} onRetry={load} />
+      <TopBar
+        user={currentUser}
+        hasUnread
+        onPropose={() => setProposeOpen(true)}
+      />
+      <Body
+        state={state}
+        onRetry={load}
+        newIds={newIds}
+        currentUser={currentUser}
+      />
     </div>
   )
 }
@@ -58,10 +101,24 @@ export function App() {
 function Body({
   state,
   onRetry,
+  newIds,
+  currentUser,
 }: {
   state: LoadState
   onRetry: () => void
+  newIds: Set<string>
+  currentUser: Member
 }) {
+  const sessions = useMemo(() => {
+    if (state.kind !== 'ready') return null
+    return state.sessions.map((s) => ({
+      ...s,
+      members: s.members.map((m) =>
+        m.id === currentUser.id ? currentUser : m,
+      ),
+    }))
+  }, [state, currentUser])
+
   if (state.kind === 'loading') {
     return (
       <>
@@ -100,9 +157,7 @@ function Body({
     )
   }
 
-  const { sessions } = state
-
-  if (sessions.length === 0) {
+  if (!sessions || sessions.length === 0) {
     return (
       <>
         <div className="hero-block">
@@ -128,8 +183,24 @@ function Body({
   const featured = tiered.filter((x) => x.t === 'featured').map((x) => x.s)
   const regular = tiered.filter((x) => x.t === 'regular').map((x) => x.s)
 
-  const leadId = live[0]?.id ?? featured.find((s) => s.userStatus === 'invited')?.id ?? null
+  const leadId =
+    live[0]?.id ??
+    featured.find((s) => s.userStatus === 'invited')?.id ??
+    null
   const lead = sessions.find((s) => s.id === leadId) ?? sessions[0] ?? null
+
+  function cardWrap(s: Session, tier: Tier) {
+    const className = newIds.has(s.id) ? 'card-wrap card-just-added' : 'card-wrap'
+    return (
+      <div key={s.id} className={className}>
+        <SessionCard
+          session={s}
+          tier={tier}
+          isLead={s.id === leadId}
+        />
+      </div>
+    )
+  }
 
   return (
     <>
@@ -139,32 +210,14 @@ function Body({
 
       {live.length > 0 && (
         <section className="section">
-          <div className="feed">
-            {live.map((s) => (
-              <SessionCard
-                key={s.id}
-                session={s}
-                tier="live"
-                isLead={s.id === leadId}
-              />
-            ))}
-          </div>
+          <div className="feed">{live.map((s) => cardWrap(s, 'live'))}</div>
         </section>
       )}
 
       {featured.length > 0 && (
         <section className="section">
           <h2 className="section-title">Up next today</h2>
-          <div className="feed">
-            {featured.map((s) => (
-              <SessionCard
-                key={s.id}
-                session={s}
-                tier="featured"
-                isLead={s.id === leadId}
-              />
-            ))}
-          </div>
+          <div className="feed">{featured.map((s) => cardWrap(s, 'featured'))}</div>
         </section>
       )}
 
@@ -172,14 +225,7 @@ function Body({
         <section className="section">
           <h2 className="section-title">This week</h2>
           <div className="feed week-grid">
-            {regular.map((s) => (
-              <SessionCard
-                key={s.id}
-                session={s}
-                tier="regular"
-                isLead={false}
-              />
-            ))}
+            {regular.map((s) => cardWrap(s, 'regular'))}
           </div>
         </section>
       )}

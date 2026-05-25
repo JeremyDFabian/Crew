@@ -3,6 +3,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 24px 0 8px;
+  gap: 12px;
 }
 
 .mark {
@@ -11,6 +12,53 @@
   font-size: 18px;
   letter-spacing: -0.02em;
   color: var(--ink);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.propose {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 7px 12px 7px 10px;
+  cursor: pointer;
+  transition:
+    background var(--motion-instant) var(--ease-out),
+    border-color var(--motion-instant) var(--ease-out);
+}
+
+.propose:hover {
+  background: var(--surface-sunk);
+  border-color: var(--ink-muted);
+}
+
+.propose:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.proposeLabel {
+  display: inline;
+}
+
+@media (max-width: 480px) {
+  .propose {
+    padding: 7px 9px;
+  }
+  .proposeLabel {
+    display: none;
+  }
 }
 
 .avatar {
