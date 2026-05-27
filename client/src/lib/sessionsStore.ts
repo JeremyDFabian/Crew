@@ -1,5 +1,6 @@
 import type { Session, SessionStatus } from '../mocks/sessions'
 import { getSessions } from '../mocks/sessions'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const STORAGE_KEY = 'crew.sessions.v1'
 const STORAGE_VERSION = 1
@@ -72,4 +73,80 @@ export function applyStatus(
     return { ...s, userStatus: status }
   })
   return { next, prevStatus }
+}
+
+export type SessionsLoadState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; sessions: Session[] }
+  | { kind: 'error' }
+
+export type UseSessions = {
+  state: SessionsLoadState
+  accept: (id: string) => void
+  decline: (id: string) => { prevStatus: SessionStatus } | null
+  undoDecline: (id: string, prevStatus: SessionStatus) => void
+  join: (id: string) => void
+  refresh: () => Promise<void>
+}
+
+export function useSessions(): UseSessions {
+  const [state, setState] = useState<SessionsLoadState>({ kind: 'loading' })
+  const sessionsRef = useRef<Session[]>([])
+
+  const refresh = useCallback(async () => {
+    setState({ kind: 'loading' })
+    try {
+      const sessions = await loadOrSeed()
+      sessionsRef.current = sessions
+      setState({ kind: 'ready', sessions })
+    } catch {
+      setState({ kind: 'error' })
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  function commit(next: Session[]) {
+    sessionsRef.current = next
+    writeStoredSessions(next)
+    setState({ kind: 'ready', sessions: next })
+  }
+
+  const accept = useCallback((id: string) => {
+    const { next } = applyStatus(sessionsRef.current, id, 'accepted')
+    commit(next)
+  }, [])
+
+  const decline = useCallback((id: string) => {
+    const { next, prevStatus } = applyStatus(
+      sessionsRef.current,
+      id,
+      'declined',
+    )
+    if (prevStatus === null) return null
+    commit(next)
+    return { prevStatus }
+  }, [])
+
+  const undoDecline = useCallback(
+    (id: string, prevStatus: SessionStatus) => {
+      const { next } = applyStatus(sessionsRef.current, id, prevStatus)
+      commit(next)
+    },
+    [],
+  )
+
+  const join = useCallback((id: string) => {
+    const session = sessionsRef.current.find((s) => s.id === id)
+    if (!session) return
+    if (!session.joinUrl) {
+      console.warn('crew: join called on session without joinUrl', id)
+      return
+    }
+    window.open(session.joinUrl, '_blank', 'noopener,noreferrer')
+  }, [])
+
+  return { state, accept, decline, undoDecline, join, refresh }
 }
