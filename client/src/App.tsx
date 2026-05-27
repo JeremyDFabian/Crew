@@ -1,22 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
-import { getSessions } from './mocks/sessions'
-import type { Member, Session } from './mocks/sessions'
+import { useMemo, useState } from 'react'
+import type { Session, SessionStatus, Member } from './mocks/sessions'
 import { Hero } from './components/Hero'
 import { TopBar } from './components/TopBar'
 import { SessionCard } from './components/SessionCard'
 import type { Tier } from './components/SessionCard'
 import { Button } from './components/Button'
+import { Toast } from './components/Toast'
 import { minutesUntil, isToday } from './lib/timeFormat'
 import { Onboarding } from './onboarding/Onboarding'
 import { loadProfile } from './onboarding/storage'
 import { Propose } from './propose/Propose'
 import { useCurrentUser } from './hooks/useCurrentUser'
+import { useSessions } from './lib/sessionsStore'
 import './styles/dashboard.css'
-
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; sessions: Session[] }
-  | { kind: 'error'; lastSyncMin: number }
 
 function tierFor(s: Session): Tier {
   if (s.isLive) return 'live'
@@ -25,35 +21,23 @@ function tierFor(s: Session): Tier {
   return 'regular'
 }
 
+type PendingUndo = {
+  id: string
+  subject: string
+  prevStatus: SessionStatus
+}
+
 export function App() {
   const [hasProfile, setHasProfile] = useState<boolean>(
     () => loadProfile() !== null,
   )
   const currentUser = useCurrentUser()
-  const [state, setState] = useState<LoadState>({ kind: 'loading' })
+  const sessions = useSessions()
   const [proposeOpen, setProposeOpen] = useState(false)
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
-
-  async function load() {
-    setState({ kind: 'loading' })
-    try {
-      const sessions = await getSessions()
-      setState({ kind: 'ready', sessions })
-    } catch {
-      setState({ kind: 'error', lastSyncMin: 0 })
-    }
-  }
-
-  useEffect(() => {
-    if (hasProfile) load()
-  }, [hasProfile])
+  const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null)
 
   function handleSessionCreated(s: Session) {
-    setState((prev) =>
-      prev.kind === 'ready'
-        ? { kind: 'ready', sessions: [s, ...prev.sessions] }
-        : { kind: 'ready', sessions: [s] },
-    )
     setNewIds((prev) => {
       const next = new Set(prev)
       next.add(s.id)
@@ -66,6 +50,27 @@ export function App() {
         return next
       })
     }, 2400)
+  }
+
+  function handleAccept(id: string) {
+    sessions.accept(id)
+  }
+
+  function handleJoin(id: string) {
+    sessions.join(id)
+  }
+
+  function handleDecline(id: string) {
+    if (sessions.state.kind !== 'ready') return
+    const session = sessions.state.sessions.find((s) => s.id === id)
+    if (!session) return
+    const result = sessions.decline(id)
+    if (!result) return
+    setPendingUndo({
+      id,
+      subject: session.subject,
+      prevStatus: result.prevStatus,
+    })
   }
 
   if (!hasProfile) {
@@ -89,13 +94,37 @@ export function App() {
         onPropose={() => setProposeOpen(true)}
       />
       <Body
-        state={state}
-        onRetry={load}
+        state={sessions.state}
+        onRetry={sessions.refresh}
         newIds={newIds}
         currentUser={currentUser}
+        onAccept={handleAccept}
+        onDecline={handleDecline}
+        onJoin={handleJoin}
       />
+      {pendingUndo && (
+        <Toast
+          key={pendingUndo.id}
+          message={`Declined ${pendingUndo.subject}`}
+          actionLabel="Undo"
+          onAction={() =>
+            sessions.undoDecline(pendingUndo.id, pendingUndo.prevStatus)
+          }
+          onDismiss={() => setPendingUndo(null)}
+        />
+      )}
     </div>
   )
+}
+
+type BodyProps = {
+  state: ReturnType<typeof useSessions>['state']
+  onRetry: () => void
+  newIds: Set<string>
+  currentUser: Member
+  onAccept: (id: string) => void
+  onDecline: (id: string) => void
+  onJoin: (id: string) => void
 }
 
 function Body({
@@ -103,20 +132,20 @@ function Body({
   onRetry,
   newIds,
   currentUser,
-}: {
-  state: LoadState
-  onRetry: () => void
-  newIds: Set<string>
-  currentUser: Member
-}) {
+  onAccept,
+  onDecline,
+  onJoin,
+}: BodyProps) {
   const sessions = useMemo(() => {
     if (state.kind !== 'ready') return null
-    return state.sessions.map((s) => ({
-      ...s,
-      members: s.members.map((m) =>
-        m.id === currentUser.id ? currentUser : m,
-      ),
-    }))
+    return state.sessions
+      .filter((s) => s.userStatus !== 'declined')
+      .map((s) => ({
+        ...s,
+        members: s.members.map((m) =>
+          m.id === currentUser.id ? currentUser : m,
+        ),
+      }))
   }, [state, currentUser])
 
   if (state.kind === 'loading') {
@@ -145,9 +174,7 @@ function Body({
         </div>
         <section className="section">
           <div className="error-banner">
-            <span>
-              Couldn&rsquo;t refresh. Last sync {state.lastSyncMin} min ago.
-            </span>
+            <span>Couldn&rsquo;t load your sessions.</span>
             <Button variant="ghost" onClick={onRetry}>
               Retry
             </Button>
@@ -197,6 +224,9 @@ function Body({
           session={s}
           tier={tier}
           isLead={s.id === leadId}
+          onAccept={onAccept}
+          onDecline={onDecline}
+          onJoin={onJoin}
         />
       </div>
     )
