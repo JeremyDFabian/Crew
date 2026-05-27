@@ -13,34 +13,44 @@ type Props = {
   session: Session
   tier: Tier
   isLead: boolean
+  onAccept: (id: string) => void
+  onDecline: (id: string) => void
+  onJoin: (id: string) => void
 }
 
-export function SessionCard({ session, tier, isLead }: Props) {
+export function SessionCard({
+  session,
+  tier,
+  isLead,
+  onAccept,
+  onDecline,
+  onJoin,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
-  const [accepted, setAccepted] = useState(session.userStatus === 'accepted')
   const [joining, setJoining] = useState(false)
 
+  const accepted = session.userStatus === 'accepted'
   const m = minutesUntil(session.startsAt)
   const isLive = tier === 'live'
   const isFeatured = tier === 'featured'
   const canExpand = !isLive
 
-  function onJoin(e: MouseEvent) {
+  function handleJoin(e: MouseEvent) {
     e.stopPropagation()
     setJoining(true)
     setTimeout(() => setJoining(false), 700)
-    console.log('joining session', session.id, session.joinUrl)
+    onJoin(session.id)
   }
 
-  function onAccept(e: MouseEvent) {
+  function handleAccept(e: MouseEvent) {
     e.stopPropagation()
-    setAccepted(true)
+    onAccept(session.id)
   }
 
-  function onDecline(e: MouseEvent) {
+  function handleDecline(e: MouseEvent) {
     e.stopPropagation()
     setExpanded(false)
-    console.log('declined', session.id)
+    onDecline(session.id)
   }
 
   let headCta: { label: string; action: 'join' | 'accept' } | null = null
@@ -90,7 +100,7 @@ export function SessionCard({ session, tier, isLead }: Props) {
           {headCta && (
             <Button
               variant={ctaVariant}
-              onClick={headCta.action === 'join' ? onJoin : onAccept}
+              onClick={headCta.action === 'join' ? handleJoin : handleAccept}
             >
               {headCta.label}
             </Button>
@@ -101,10 +111,10 @@ export function SessionCard({ session, tier, isLead }: Props) {
       {expanded && (
         <div className={styles.detail}>
           <ul className={styles.members}>
-            {session.members.map((m) => (
-              <li key={m.id} className={styles.member}>
-                <span>{m.name}</span>
-                {m.id === session.hostId && (
+            {session.members.map((member) => (
+              <li key={member.id} className={styles.member}>
+                <span>{member.name}</span>
+                {member.id === session.hostId && (
                   <span className={styles.host}>host</span>
                 )}
               </li>
@@ -112,11 +122,11 @@ export function SessionCard({ session, tier, isLead }: Props) {
           </ul>
           <div className={styles.actions}>
             {!accepted && (
-              <Button variant="secondary" onClick={onAccept}>
+              <Button variant="secondary" onClick={handleAccept}>
                 Accept
               </Button>
             )}
-            <Button variant="ghost" onClick={onDecline}>
+            <Button variant="ghost" onClick={handleDecline}>
               Decline
             </Button>
           </div>
