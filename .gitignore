@@ -21,3 +21,14 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Build outputs
+dist/
+**/dist/
+*.tsbuildinfo
+/client/vite.config.js
+/client/vite.config.d.ts
+
+# Local browser automation captures
+.playwright-cli/
+**/.playwright-cli/
