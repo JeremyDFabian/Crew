@@ -229,7 +229,9 @@ export function AccountStep({ draft, onChange, onNext, onBack }: StepProps) {
             <span>
               I&rsquo;m 13 or older and I agree to the{' '}
               <a
-                href="/terms"
+                href="/terms.html"
+                target="_blank"
+                rel="noopener"
                 className={styles.checkboxLink}
                 onClick={(e) => e.stopPropagation()}
               >
