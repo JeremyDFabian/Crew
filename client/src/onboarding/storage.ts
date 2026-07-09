@@ -55,11 +55,21 @@ export function loadProfile(): Profile | null {
   }
 }
 
+// localStorage 'storage' events only fire in *other* tabs; this custom event
+// lets same-tab listeners (useProfile) react to profile writes.
+export const PROFILE_EVENT = 'crew:profile'
+
+function notifyProfileChanged(): void {
+  window.dispatchEvent(new Event(PROFILE_EVENT))
+}
+
 export function commitProfile(profile: Profile): void {
   safeSet(localStorage, PROFILE_KEY, JSON.stringify(profile))
   clearDraft()
+  notifyProfileChanged()
 }
 
 export function clearProfile(): void {
   safeRemove(localStorage, PROFILE_KEY)
+  notifyProfileChanged()
 }
