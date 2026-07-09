@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import shell from '../onboarding/Onboarding.module.css'
 import local from './Propose.module.css'
 import { useProfile } from '../hooks/useProfile'
@@ -11,7 +11,7 @@ import {
 } from './steps'
 import { clearDraft, isDraftTouched, loadDraft, saveDraft } from './storage'
 import { classmatesFor, sendInvites } from './data'
-import type { Member, Session } from '../mocks/sessions'
+import type { Member, Session } from '../lib/types'
 import type { DraftSession, StepId } from './types'
 
 const STEPS: StepId[] = ['subject', 'time', 'people', 'confirm']
@@ -30,6 +30,10 @@ export function Propose({ onClose, onCreate }: Props) {
   const [discardOpen, setDiscardOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+  const suggestions = useMemo(
+    () => classmatesFor(draft.subject ?? ''),
+    [draft.subject],
+  )
 
   useEffect(() => {
     saveDraft(draft)
@@ -91,7 +95,7 @@ export function Propose({ onClose, onCreate }: Props) {
     setSendError(null)
     try {
       await sendInvites()
-      const session = buildSession(draft, currentUser)
+      const session = buildSession(draft, currentUser, suggestions)
       onCreate(session)
       clearDraft()
       onClose()
@@ -177,6 +181,7 @@ export function Propose({ onClose, onCreate }: Props) {
               onChange={patch}
               onNext={goNext}
               onBack={goBack}
+              suggestions={suggestions}
             />
           )}
           {step === 'confirm' && (
@@ -188,6 +193,7 @@ export function Propose({ onClose, onCreate }: Props) {
               onSend={send}
               sending={sending}
               error={sendError}
+              suggestions={suggestions}
             />
           )}
         </div>
@@ -196,8 +202,11 @@ export function Propose({ onClose, onCreate }: Props) {
   )
 }
 
-function buildSession(draft: DraftSession, host: Member): Session {
-  const suggestions = classmatesFor(draft.subject ?? '')
+function buildSession(
+  draft: DraftSession,
+  host: Member,
+  suggestions: Member[],
+): Session {
   const invitees = suggestions.filter((m) =>
     (draft.inviteeIds ?? []).includes(m.id),
   )
@@ -207,7 +216,6 @@ function buildSession(draft: DraftSession, host: Member): Session {
       : draft.startsAt
         ? new Date(draft.startsAt)
         : new Date()
-  const isLive = draft.timeMode === 'now'
   const mode = draft.mode ?? 'remote'
   return {
     id: `s-new-${Date.now()}`,
@@ -219,7 +227,6 @@ function buildSession(draft: DraftSession, host: Member): Session {
     location: mode === 'in-person' ? draft.location || undefined : undefined,
     joinUrl: mode === 'remote' ? 'https://meet.example/new' : undefined,
     mode,
-    isLive,
     userStatus: 'accepted',
   }
 }

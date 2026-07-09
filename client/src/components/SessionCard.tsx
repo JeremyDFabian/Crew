@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { MouseEvent } from 'react'
-import type { Session } from '../mocks/sessions'
+import type { Session } from '../lib/types'
 import { AvatarStack } from './AvatarStack'
 import { Button } from './Button'
 import { LivePill, YoureInPill } from './Pill'

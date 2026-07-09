@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
-import type { Session, SessionStatus, Member } from './mocks/sessions'
+import { useEffect, useMemo, useState } from 'react'
+import type { Session, SessionStatus, Member } from './lib/types'
 import { Hero } from './components/Hero'
 import { TopBar } from './components/TopBar'
 import { SessionCard } from './components/SessionCard'
 import type { Tier } from './components/SessionCard'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
-import { minutesUntil, isToday } from './lib/timeFormat'
+import { minutesUntil, isToday, isLiveNow, hasEnded } from './lib/timeFormat'
 import { Onboarding } from './onboarding/Onboarding'
 import { loadProfile } from './onboarding/storage'
 import { Propose } from './propose/Propose'
@@ -14,11 +14,20 @@ import { useCurrentUser } from './hooks/useCurrentUser'
 import { useSessions } from './lib/sessionsStore'
 import './styles/dashboard.css'
 
-function tierFor(s: Session): Tier {
-  if (s.isLive) return 'live'
-  if (minutesUntil(s.startsAt) < 30) return 'featured'
-  if (isToday(s.startsAt)) return 'featured'
+function tierFor(s: Session, now: Date): Tier {
+  if (isLiveNow(s.startsAt, s.durationMin, now)) return 'live'
+  const m = minutesUntil(s.startsAt, now)
+  if (m >= 0 && (m < 30 || isToday(s.startsAt, now))) return 'featured'
   return 'regular'
+}
+
+function useNow(intervalMs = 60_000): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(new Date()), intervalMs)
+    return () => window.clearInterval(t)
+  }, [intervalMs])
+  return now
 }
 
 type PendingUndo = {
@@ -38,6 +47,7 @@ export function App() {
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null)
 
   function handleSessionCreated(s: Session) {
+    sessions.add(s)
     setNewIds((prev) => {
       const next = new Set(prev)
       next.add(s.id)
@@ -88,11 +98,7 @@ export function App() {
 
   return (
     <div className="dashboard">
-      <TopBar
-        user={currentUser}
-        hasUnread
-        onPropose={() => setProposeOpen(true)}
-      />
+      <TopBar user={currentUser} onPropose={() => setProposeOpen(true)} />
       <Body
         state={sessions.state}
         onRetry={sessions.refresh}
@@ -101,6 +107,7 @@ export function App() {
         onAccept={handleAccept}
         onDecline={handleDecline}
         onJoin={handleJoin}
+        onPropose={() => setProposeOpen(true)}
       />
       {pendingUndo && (
         <Toast
@@ -125,6 +132,7 @@ type BodyProps = {
   onAccept: (id: string) => void
   onDecline: (id: string) => void
   onJoin: (id: string) => void
+  onPropose: () => void
 }
 
 function Body({
@@ -135,18 +143,21 @@ function Body({
   onAccept,
   onDecline,
   onJoin,
+  onPropose,
 }: BodyProps) {
+  const now = useNow()
   const sessions = useMemo(() => {
     if (state.kind !== 'ready') return null
     return state.sessions
       .filter((s) => s.userStatus !== 'declined')
+      .filter((s) => !hasEnded(s.startsAt, s.durationMin, now))
       .map((s) => ({
         ...s,
         members: s.members.map((m) =>
           m.id === currentUser.id ? currentUser : m,
         ),
       }))
-  }, [state, currentUser])
+  }, [state, currentUser, now])
 
   if (state.kind === 'loading') {
     return (
@@ -196,8 +207,8 @@ function Body({
               No sessions on your schedule yet. Pick a subject, find some
               classmates, claim a time.
             </p>
-            <Button variant="primary" onClick={() => console.log('browse')}>
-              Browse study sessions
+            <Button variant="primary" onClick={onPropose}>
+              Propose a session
             </Button>
           </div>
         </section>
@@ -205,7 +216,7 @@ function Body({
     )
   }
 
-  const tiered = sessions.map((s) => ({ s, t: tierFor(s) }))
+  const tiered = sessions.map((s) => ({ s, t: tierFor(s, now) }))
   const live = tiered.filter((x) => x.t === 'live').map((x) => x.s)
   const featured = tiered.filter((x) => x.t === 'featured').map((x) => x.s)
   const regular = tiered.filter((x) => x.t === 'regular').map((x) => x.s)
@@ -235,7 +246,7 @@ function Body({
   return (
     <>
       <div className="hero-block">
-        <Hero lead={lead} />
+        <Hero lead={lead} currentUserId={currentUser.id} />
       </div>
 
       {live.length > 0 && (

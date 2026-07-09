@@ -2,24 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import shell from '../onboarding/Onboarding.module.css'
 import local from './Propose.module.css'
 import { avatarColor } from '../lib/colorFromId'
+import { initialsOf } from '../lib/initials'
 import { isToday, timeOfDay, weekday } from '../lib/timeFormat'
-import { classmatesFor, todayTimeChips } from './data'
+import { todayTimeChips } from './data'
 import type { DraftSession, StepId, TimeMode } from './types'
-import type { SessionMode } from '../mocks/sessions'
+import type { Member, SessionMode } from '../lib/types'
 
 type StepProps = {
   draft: DraftSession
   onChange: (patch: Partial<DraftSession>) => void
   onNext: () => void
   onBack: () => void
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .slice(0, 2)
-    .join('')
 }
 
 // --- Subject -----------------------------------------------------------------
@@ -295,11 +288,17 @@ function composePickDate(date: string, time: string): Date {
 
 // --- People ------------------------------------------------------------------
 
-export function PeopleStep({ draft, onChange, onNext, onBack }: StepProps) {
-  const suggestions = useMemo(
-    () => classmatesFor(draft.subject ?? ''),
-    [draft.subject],
-  )
+type PeopleProps = StepProps & {
+  suggestions: Member[]
+}
+
+export function PeopleStep({
+  draft,
+  onChange,
+  onNext,
+  onBack,
+  suggestions,
+}: PeopleProps) {
   const selectedIds = draft.inviteeIds ?? []
   const openTo = draft.openToCourse ?? false
 
@@ -412,6 +411,7 @@ type ConfirmProps = {
   onSend: () => Promise<void> | void
   sending: boolean
   error: string | null
+  suggestions: Member[]
 }
 
 const DURATIONS: { min: number; label: string }[] = [
@@ -435,11 +435,11 @@ export function ConfirmStep({
   onSend,
   sending,
   error,
+  suggestions,
 }: ConfirmProps) {
   const duration = draft.durationMin ?? 60
   const mode = draft.mode ?? 'remote'
   const startsAt = draft.startsAt ? new Date(draft.startsAt) : null
-  const suggestions = classmatesFor(draft.subject ?? '')
   const invitees = suggestions.filter((m) =>
     (draft.inviteeIds ?? []).includes(m.id),
   )

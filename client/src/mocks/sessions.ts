@@ -1,24 +1,4 @@
-export type SessionStatus = 'invited' | 'accepted' | 'declined'
-export type SessionMode = 'remote' | 'in-person'
-
-export type Member = {
-  id: string
-  name: string
-}
-
-export type Session = {
-  id: string
-  subject: string
-  startsAt: Date
-  durationMin: number
-  members: Member[]
-  hostId: string
-  location?: string
-  joinUrl?: string
-  mode: SessionMode
-  isLive: boolean
-  userStatus: SessionStatus
-}
+import type { Session } from '../lib/types'
 
 export const CURRENT_USER = { id: 'u-jeremy', name: 'Jeremy F.' }
 
@@ -43,7 +23,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-maya',
       joinUrl: 'https://meet.example/abc',
       mode: 'remote',
-      isLive: true,
       userStatus: 'accepted',
     },
     {
@@ -59,7 +38,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-omar',
       location: 'Library, table 4',
       mode: 'in-person',
-      isLive: false,
       userStatus: 'invited',
     },
     {
@@ -75,7 +53,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-sam',
       joinUrl: 'https://meet.example/bio',
       mode: 'remote',
-      isLive: false,
       userStatus: 'accepted',
     },
     {
@@ -90,7 +67,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-tomas',
       location: 'Coffeehouse on 3rd',
       mode: 'in-person',
-      isLive: false,
       userStatus: 'invited',
     },
     {
@@ -108,7 +84,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-mei',
       joinUrl: 'https://meet.example/algebra',
       mode: 'remote',
-      isLive: false,
       userStatus: 'accepted',
     },
     {
@@ -124,7 +99,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-priya',
       location: 'Senior commons',
       mode: 'in-person',
-      isLive: false,
       userStatus: 'invited',
     },
     {
@@ -139,7 +113,6 @@ export async function getSessions(now: Date = new Date()): Promise<Session[]> {
       hostId: 'u-noor',
       joinUrl: 'https://meet.example/chem',
       mode: 'remote',
-      isLive: false,
       userStatus: 'accepted',
     },
   ]

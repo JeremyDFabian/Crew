@@ -1,4 +1,4 @@
-import type { SessionMode } from '../mocks/sessions'
+import type { SessionMode } from '../lib/types'
 
 export type TimeMode = 'now' | 'today' | 'pick'
 

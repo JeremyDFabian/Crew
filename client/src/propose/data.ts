@@ -1,4 +1,4 @@
-import type { Member } from '../mocks/sessions'
+import type { Member } from '../lib/types'
 
 const POOL: Member[] = [
   { id: 'p-maya', name: 'Maya P.' },

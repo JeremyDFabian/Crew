@@ -1,6 +1,6 @@
 import { useProfile } from './useProfile'
 import { CURRENT_USER } from '../mocks/sessions'
-import type { Member } from '../mocks/sessions'
+import type { Member } from '../lib/types'
 
 export function useCurrentUser(): Member {
   const profile = useProfile()

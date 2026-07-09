@@ -1,9 +1,10 @@
-import type { Session, SessionStatus } from '../mocks/sessions'
+import type { Session, SessionStatus } from './types'
 import { getSessions } from '../mocks/sessions'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const STORAGE_KEY = 'crew.sessions.v1'
-const STORAGE_VERSION = 1
+// v2: dropped the stored isLive flag — liveness is derived from the clock.
+const STORAGE_VERSION = 2
 
 type SerializedSession = Omit<Session, 'startsAt'> & { startsAt: string }
 type StorageShape = { version: number; sessions: SerializedSession[] }
@@ -82,6 +83,7 @@ export type SessionsLoadState =
 
 export type UseSessions = {
   state: SessionsLoadState
+  add: (session: Session) => void
   accept: (id: string) => void
   decline: (id: string) => { prevStatus: SessionStatus } | null
   undoDecline: (id: string, prevStatus: SessionStatus) => void
@@ -113,6 +115,10 @@ export function useSessions(): UseSessions {
     writeStoredSessions(next)
     setState({ kind: 'ready', sessions: next })
   }
+
+  const add = useCallback((session: Session) => {
+    commit([...sessionsRef.current, session])
+  }, [])
 
   const accept = useCallback((id: string) => {
     const { next } = applyStatus(sessionsRef.current, id, 'accepted')
@@ -148,5 +154,5 @@ export function useSessions(): UseSessions {
     window.open(session.joinUrl, '_blank', 'noopener,noreferrer')
   }, [])
 
-  return { state, accept, decline, undoDecline, join, refresh }
+  return { state, add, accept, decline, undoDecline, join, refresh }
 }
