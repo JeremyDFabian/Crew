@@ -30,7 +30,7 @@ Then open:
 - API: http://localhost:3000/api/health
 - Matching: http://localhost:5001/api/health
 
-The UI calls both APIs on load. The two service rows should both show `crew-api` and `crew-matching`.
+The UI currently runs on local mock data and does not call the APIs yet; the server and matching service only expose health checks while the real API is built out.
 
 ## Scripts
 
