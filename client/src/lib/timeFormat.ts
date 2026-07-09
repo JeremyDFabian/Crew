@@ -2,6 +2,25 @@ export function minutesUntil(date: Date, now: Date = new Date()): number {
   return Math.round((date.getTime() - now.getTime()) / 60000)
 }
 
+export function isLiveNow(
+  startsAt: Date,
+  durationMin: number,
+  now: Date = new Date(),
+): boolean {
+  const start = startsAt.getTime()
+  const end = start + durationMin * 60000
+  const t = now.getTime()
+  return t >= start && t < end
+}
+
+export function hasEnded(
+  startsAt: Date,
+  durationMin: number,
+  now: Date = new Date(),
+): boolean {
+  return now.getTime() >= startsAt.getTime() + durationMin * 60000
+}
+
 export function isToday(date: Date, now: Date = new Date()): boolean {
   return date.toDateString() === now.toDateString()
 }
