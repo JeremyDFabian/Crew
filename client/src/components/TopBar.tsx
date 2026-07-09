@@ -1,4 +1,7 @@
+import { useEffect, useRef, useState } from 'react'
 import { avatarColor } from '../lib/colorFromId'
+import { initialsOf } from '../lib/initials'
+import { AccountMenu } from './AccountMenu'
 import styles from './TopBar.module.css'
 
 type Props = {
@@ -7,16 +10,29 @@ type Props = {
   onPropose?: () => void
 }
 
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .slice(0, 2)
-    .join('')
-}
-
 export function TopBar({ user, hasUnread, onPropose }: Props) {
   const { fill, ink } = avatarColor(user.id)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function onPointerDown(e: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuOpen])
+
   return (
     <nav className={styles.bar} aria-label="Top">
       <span className={styles.mark}>Crew</span>
@@ -43,15 +59,21 @@ export function TopBar({ user, hasUnread, onPropose }: Props) {
             <span className={styles.proposeLabel}>Propose</span>
           </button>
         )}
-        <button
-          className={styles.avatar}
-          style={{ background: fill, color: ink }}
-          aria-label="Account"
-          type="button"
-        >
-          {initialsOf(user.name)}
-          {hasUnread && <span className={styles.dot} aria-hidden="true" />}
-        </button>
+        <div className={styles.account} ref={menuRef}>
+          <button
+            className={styles.avatar}
+            style={{ background: fill, color: ink }}
+            aria-label="Account"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            {initialsOf(user.name)}
+            {hasUnread && <span className={styles.dot} aria-hidden="true" />}
+          </button>
+          {menuOpen && <AccountMenu onClose={() => setMenuOpen(false)} />}
+        </div>
       </div>
     </nav>
   )

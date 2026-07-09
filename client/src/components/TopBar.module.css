@@ -61,6 +61,10 @@
   }
 }
 
+.account {
+  position: relative;
+}
+
 .avatar {
   position: relative;
   width: 36px;
