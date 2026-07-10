@@ -2,12 +2,24 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const usersRouter = require('./routes/users');
+
 const app = express();
-app.use(cors());
+app.use(
+  cors({ origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173' }),
+);
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'crew-api' });
+});
+
+app.use(usersRouter);
+
+// Express 5 forwards async route errors here on its own.
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 3000;
