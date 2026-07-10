@@ -290,6 +290,9 @@ function composePickDate(date: string, time: string): Date {
 
 type PeopleProps = StepProps & {
   suggestions: Member[]
+  suggestionsLoading: boolean
+  suggestionsError: string | null
+  onRetrySuggestions: () => void
 }
 
 export function PeopleStep({
@@ -298,6 +301,9 @@ export function PeopleStep({
   onNext,
   onBack,
   suggestions,
+  suggestionsLoading,
+  suggestionsError,
+  onRetrySuggestions,
 }: PeopleProps) {
   const selectedIds = draft.inviteeIds ?? []
   const openTo = draft.openToCourse ?? false
@@ -321,6 +327,26 @@ export function PeopleStep({
       <p className={shell.lede}>
         We picked classmates in {draft.subject ?? 'this subject'}. Tap to add.
       </p>
+      {suggestionsLoading && (
+        <p className={shell.fieldHint}>Finding classmates…</p>
+      )}
+      {suggestionsError && (
+        <div>
+          <p className={shell.error}>{suggestionsError}</p>
+          <button
+            type="button"
+            className={shell.back}
+            onClick={onRetrySuggestions}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+      {!suggestionsLoading && !suggestionsError && suggestions.length === 0 && (
+        <p className={shell.fieldHint}>
+          No classmates to suggest yet — open it up below instead.
+        </p>
+      )}
       <div className={local.peopleList}>
         {suggestions.map((m) => {
           const selected = selectedIds.includes(m.id)

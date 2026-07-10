@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import shell from '../onboarding/Onboarding.module.css'
 import local from './Propose.module.css'
 import { useProfile } from '../hooks/useProfile'
-import { useCurrentUser } from '../hooks/useCurrentUser'
 import {
   ConfirmStep,
   PeopleStep,
@@ -10,7 +9,7 @@ import {
   TimeStep,
 } from './steps'
 import { clearDraft, isDraftTouched, loadDraft, saveDraft } from './storage'
-import { classmatesFor, sendInvites } from './data'
+import { createSession, getCandidates } from '../lib/api'
 import type { Member, Session } from '../lib/types'
 import type { DraftSession, StepId } from './types'
 
@@ -21,19 +20,55 @@ type Props = {
   onCreate: (session: Session) => void
 }
 
+type SuggestState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; members: Member[] }
+  | { kind: 'error' }
+
 export function Propose({ onClose, onCreate }: Props) {
   const profile = useProfile()
-  const currentUser = useCurrentUser()
   const [draft, setDraft] = useState<DraftSession>(() => loadDraft())
   const [step, setStep] = useState<StepId>('subject')
   const [dir, setDir] = useState<'forward' | 'back'>('forward')
   const [discardOpen, setDiscardOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-  const suggestions = useMemo(
-    () => classmatesFor(draft.subject ?? ''),
-    [draft.subject],
-  )
+  const [suggestState, setSuggestState] = useState<SuggestState>({
+    kind: 'ready',
+    members: [],
+  })
+  const [suggestTick, setSuggestTick] = useState(0)
+
+  const subject = draft.subject?.trim() ?? ''
+
+  useEffect(() => {
+    if (!subject) {
+      setSuggestState({ kind: 'ready', members: [] })
+      return
+    }
+    let cancelled = false
+    setSuggestState({ kind: 'loading' })
+    // Debounced: the Other input patches the subject on every keystroke.
+    const timer = window.setTimeout(() => {
+      getCandidates(subject)
+        .then(({ candidates }) => {
+          if (cancelled) return
+          setSuggestState({
+            kind: 'ready',
+            members: candidates.map((c) => ({ id: c.id, name: c.name })),
+          })
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestState({ kind: 'error' })
+        })
+    }, 300)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [subject, suggestTick])
+
+  const suggestions = suggestState.kind === 'ready' ? suggestState.members : []
 
   useEffect(() => {
     saveDraft(draft)
@@ -94,8 +129,20 @@ export function Propose({ onClose, onCreate }: Props) {
     setSending(true)
     setSendError(null)
     try {
-      await sendInvites()
-      const session = buildSession(draft, currentUser, suggestions)
+      const mode = draft.mode ?? 'remote'
+      const session = await createSession({
+        subject: subject || 'Study session',
+        startsAt:
+          draft.timeMode === 'now'
+            ? new Date().toISOString()
+            : (draft.startsAt ?? new Date().toISOString()),
+        durationMin: draft.durationMin ?? 60,
+        mode,
+        location:
+          mode === 'in-person' ? draft.location?.trim() || undefined : undefined,
+        inviteeIds: draft.inviteeIds ?? [],
+        openToCourse: draft.openToCourse ?? false,
+      })
       onCreate(session)
       clearDraft()
       onClose()
@@ -182,6 +229,13 @@ export function Propose({ onClose, onCreate }: Props) {
               onNext={goNext}
               onBack={goBack}
               suggestions={suggestions}
+              suggestionsLoading={suggestState.kind === 'loading'}
+              suggestionsError={
+                suggestState.kind === 'error'
+                  ? 'Couldn’t load classmates. Check your connection.'
+                  : null
+              }
+              onRetrySuggestions={() => setSuggestTick((t) => t + 1)}
             />
           )}
           {step === 'confirm' && (
@@ -202,31 +256,3 @@ export function Propose({ onClose, onCreate }: Props) {
   )
 }
 
-function buildSession(
-  draft: DraftSession,
-  host: Member,
-  suggestions: Member[],
-): Session {
-  const invitees = suggestions.filter((m) =>
-    (draft.inviteeIds ?? []).includes(m.id),
-  )
-  const startsAt =
-    draft.timeMode === 'now'
-      ? new Date()
-      : draft.startsAt
-        ? new Date(draft.startsAt)
-        : new Date()
-  const mode = draft.mode ?? 'remote'
-  return {
-    id: `s-new-${Date.now()}`,
-    subject: draft.subject ?? 'Study session',
-    startsAt,
-    durationMin: draft.durationMin ?? 60,
-    members: [host, ...invitees],
-    hostId: host.id,
-    location: mode === 'in-person' ? draft.location || undefined : undefined,
-    joinUrl: mode === 'remote' ? 'https://meet.example/new' : undefined,
-    mode,
-    userStatus: 'accepted',
-  }
-}
