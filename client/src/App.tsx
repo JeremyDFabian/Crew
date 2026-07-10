@@ -14,7 +14,6 @@ import { useCurrentUser } from './hooks/useCurrentUser'
 import { useSessions } from './lib/sessionsStore'
 import { createUser } from './lib/api'
 import { loadAuth, saveAuth } from './lib/auth'
-import { CURRENT_USER as MOCK_ME } from './mocks/sessions'
 import './styles/dashboard.css'
 
 function tierFor(s: Session, now: Date): Tier {
@@ -50,7 +49,8 @@ export function App() {
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null)
 
   // Profiles that predate accounts get registered silently; failures are
-  // fine (offline, server down) — we retry on the next load.
+  // fine (offline, server down) — we retry on the next load. The sessions
+  // fetch that ran without a token gets retried once auth exists.
   useEffect(() => {
     if (!hasProfile || loadAuth()) return
     const profile = loadProfile()
@@ -63,7 +63,10 @@ export function App() {
       grade: profile.grade,
       courses: profile.courses,
     })
-      .then(({ user, token }) => saveAuth({ userId: user.id, token }))
+      .then(({ user, token }) => {
+        saveAuth({ userId: user.id, token })
+        sessions.refresh()
+      })
       .catch(() => {})
   }, [hasProfile])
 
@@ -105,7 +108,15 @@ export function App() {
   }
 
   if (!hasProfile) {
-    return <Onboarding onComplete={() => setHasProfile(true)} />
+    return (
+      <Onboarding
+        onComplete={() => {
+          setHasProfile(true)
+          // The mount-time fetch ran without a token; redo it now.
+          sessions.refresh()
+        }}
+      />
+    )
   }
 
   if (proposeOpen) {
@@ -174,10 +185,8 @@ function Body({
       .filter((s) => !hasEnded(s.startsAt, s.durationMin, now))
       .map((s) => ({
         ...s,
-        // Mock sessions still carry the placeholder id for "you"; the alias
-        // goes away with the mocks when the store switches to HTTP.
         members: s.members.map((m) =>
-          m.id === currentUser.id || m.id === MOCK_ME.id ? currentUser : m,
+          m.id === currentUser.id ? currentUser : m,
         ),
       }))
   }, [state, currentUser, now])

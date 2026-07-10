@@ -1,66 +1,9 @@
 import type { Session, SessionStatus } from './types'
-import { getSessions } from '../mocks/sessions'
+import * as api from './api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const STORAGE_KEY = 'crew.sessions.v1'
-// v2: dropped the stored isLive flag — liveness is derived from the clock.
-const STORAGE_VERSION = 2
-
-type SerializedSession = Omit<Session, 'startsAt'> & { startsAt: string }
-type StorageShape = { version: number; sessions: SerializedSession[] }
-
-function serialize(s: Session): SerializedSession {
-  return { ...s, startsAt: s.startsAt.toISOString() }
-}
-
-function deserialize(s: SerializedSession): Session {
-  return { ...s, startsAt: new Date(s.startsAt) }
-}
-
-function safeGet(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function safeSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    console.warn('crew: localStorage write failed; continuing in-memory only')
-  }
-}
-
-export function readStoredSessions(): Session[] | null {
-  const raw = safeGet(STORAGE_KEY)
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as StorageShape
-    if (parsed.version !== STORAGE_VERSION) return null
-    if (!Array.isArray(parsed.sessions)) return null
-    return parsed.sessions.map(deserialize)
-  } catch {
-    return null
-  }
-}
-
-export function writeStoredSessions(sessions: Session[]): void {
-  const payload: StorageShape = {
-    version: STORAGE_VERSION,
-    sessions: sessions.map(serialize),
-  }
-  safeSet(STORAGE_KEY, JSON.stringify(payload))
-}
-
-export async function loadOrSeed(): Promise<Session[]> {
-  const stored = readStoredSessions()
-  if (stored) return stored
-  const seeded = await getSessions()
-  writeStoredSessions(seeded)
-  return seeded
-}
+// Sessions used to persist locally under this key; the server owns them now.
+const LEGACY_STORAGE_KEY = 'crew.sessions.v1'
 
 export function applyStatus(
   sessions: Session[],
@@ -95,10 +38,18 @@ export function useSessions(): UseSessions {
   const [state, setState] = useState<SessionsLoadState>({ kind: 'loading' })
   const sessionsRef = useRef<Session[]>([])
 
+  useEffect(() => {
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    } catch {
+      /* non-fatal */
+    }
+  }, [])
+
   const refresh = useCallback(async () => {
     setState({ kind: 'loading' })
     try {
-      const sessions = await loadOrSeed()
+      const sessions = await api.getSessions()
       sessionsRef.current = sessions
       setState({ kind: 'ready', sessions })
     } catch {
@@ -112,7 +63,6 @@ export function useSessions(): UseSessions {
 
   function commit(next: Session[]) {
     sessionsRef.current = next
-    writeStoredSessions(next)
     setState({ kind: 'ready', sessions: next })
   }
 
@@ -120,28 +70,46 @@ export function useSessions(): UseSessions {
     commit([...sessionsRef.current, session])
   }, [])
 
-  const accept = useCallback((id: string) => {
-    const { next } = applyStatus(sessionsRef.current, id, 'accepted')
-    commit(next)
-  }, [])
+  const accept = useCallback(
+    (id: string) => {
+      const snapshot = sessionsRef.current
+      const { next, prevStatus } = applyStatus(snapshot, id, 'accepted')
+      if (prevStatus === null) return
+      commit(next)
+      api.rsvp(id, 'accepted').catch(() => {
+        commit(snapshot)
+        refresh()
+      })
+    },
+    [refresh],
+  )
 
-  const decline = useCallback((id: string) => {
-    const { next, prevStatus } = applyStatus(
-      sessionsRef.current,
-      id,
-      'declined',
-    )
-    if (prevStatus === null) return null
-    commit(next)
-    return { prevStatus }
-  }, [])
+  const decline = useCallback(
+    (id: string) => {
+      const snapshot = sessionsRef.current
+      const { next, prevStatus } = applyStatus(snapshot, id, 'declined')
+      if (prevStatus === null) return null
+      commit(next)
+      api.rsvp(id, 'declined').catch(() => {
+        commit(snapshot)
+        refresh()
+      })
+      return { prevStatus }
+    },
+    [refresh],
+  )
 
   const undoDecline = useCallback(
     (id: string, prevStatus: SessionStatus) => {
-      const { next } = applyStatus(sessionsRef.current, id, prevStatus)
+      const snapshot = sessionsRef.current
+      const { next } = applyStatus(snapshot, id, prevStatus)
       commit(next)
+      api.rsvp(id, prevStatus).catch(() => {
+        commit(snapshot)
+        refresh()
+      })
     },
-    [],
+    [refresh],
   )
 
   const join = useCallback((id: string) => {
