@@ -16,6 +16,8 @@ import {
   saveDraft,
 } from './storage'
 import { parseInvite } from './data'
+import { ApiError, createUser } from '../lib/api'
+import { saveAuth } from '../lib/auth'
 import type { DraftProfile, Grade, StepId } from './types'
 
 const STEPS: StepId[] = [
@@ -48,6 +50,8 @@ export function Onboarding({ onComplete }: Props) {
   const [draft, setDraft] = useState<DraftProfile>(readInitialDraft)
   const [step, setStep] = useState<StepId>('welcome')
   const [dir, setDir] = useState<'forward' | 'back'>('forward')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const ignorePop = useRef(false)
 
   useEffect(() => {
@@ -102,7 +106,7 @@ export function Onboarding({ onComplete }: Props) {
     }))
   }, [])
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     if (
       !draft.firstName ||
       !draft.email ||
@@ -110,6 +114,27 @@ export function Onboarding({ onComplete }: Props) {
       !draft.school ||
       !draft.grade
     ) {
+      return
+    }
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const { user, token } = await createUser({
+        firstName: draft.firstName.trim(),
+        displayName: draft.displayName?.trim() || undefined,
+        email: draft.email.trim(),
+        school: draft.school,
+        grade: draft.grade,
+        courses: draft.courses ?? [],
+      })
+      saveAuth({ userId: user.id, token })
+    } catch (err) {
+      setSubmitting(false)
+      setSubmitError(
+        err instanceof ApiError && err.status > 0
+          ? err.message
+          : 'Couldn’t reach Crew. Check your connection and try again.',
+      )
       return
     }
     commitProfile({
@@ -185,6 +210,8 @@ export function Onboarding({ onComplete }: Props) {
           {step === 'complete' && (
             <CompleteStep
               firstName={draft.firstName}
+              submitting={submitting}
+              error={submitError}
               onFinish={finish}
             />
           )}

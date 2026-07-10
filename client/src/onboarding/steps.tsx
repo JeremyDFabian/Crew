@@ -633,10 +633,17 @@ export function CoursesStep({
 
 type CompleteProps = {
   firstName?: string
+  submitting: boolean
+  error: string | null
   onFinish: () => void
 }
 
-export function CompleteStep({ firstName, onFinish }: CompleteProps) {
+export function CompleteStep({
+  firstName,
+  submitting,
+  error,
+  onFinish,
+}: CompleteProps) {
   return (
     <div className={styles.screen}>
       <div className={styles.completeBlock}>
@@ -648,9 +655,23 @@ export function CompleteStep({ firstName, onFinish }: CompleteProps) {
             : 'Take a look at what’s happening.'}
         </p>
       </div>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
       <div className={styles.actions}>
-        <button type="button" className={styles.cta} onClick={onFinish}>
-          Go to dashboard
+        <button
+          type="button"
+          className={styles.cta}
+          disabled={submitting}
+          onClick={onFinish}
+        >
+          {submitting
+            ? 'Setting things up…'
+            : error
+              ? 'Try again'
+              : 'Go to dashboard'}
         </button>
       </div>
     </div>
