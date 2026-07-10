@@ -12,6 +12,9 @@ import { loadProfile } from './onboarding/storage'
 import { Propose } from './propose/Propose'
 import { useCurrentUser } from './hooks/useCurrentUser'
 import { useSessions } from './lib/sessionsStore'
+import { createUser } from './lib/api'
+import { loadAuth, saveAuth } from './lib/auth'
+import { CURRENT_USER as MOCK_ME } from './mocks/sessions'
 import './styles/dashboard.css'
 
 function tierFor(s: Session, now: Date): Tier {
@@ -45,6 +48,24 @@ export function App() {
   const [proposeOpen, setProposeOpen] = useState(false)
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null)
+
+  // Profiles that predate accounts get registered silently; failures are
+  // fine (offline, server down) — we retry on the next load.
+  useEffect(() => {
+    if (!hasProfile || loadAuth()) return
+    const profile = loadProfile()
+    if (!profile) return
+    createUser({
+      firstName: profile.firstName,
+      displayName: profile.displayName,
+      email: profile.email,
+      school: profile.school,
+      grade: profile.grade,
+      courses: profile.courses,
+    })
+      .then(({ user, token }) => saveAuth({ userId: user.id, token }))
+      .catch(() => {})
+  }, [hasProfile])
 
   function handleSessionCreated(s: Session) {
     sessions.add(s)
@@ -153,8 +174,10 @@ function Body({
       .filter((s) => !hasEnded(s.startsAt, s.durationMin, now))
       .map((s) => ({
         ...s,
+        // Mock sessions still carry the placeholder id for "you"; the alias
+        // goes away with the mocks when the store switches to HTTP.
         members: s.members.map((m) =>
-          m.id === currentUser.id ? currentUser : m,
+          m.id === currentUser.id || m.id === MOCK_ME.id ? currentUser : m,
         ),
       }))
   }, [state, currentUser, now])

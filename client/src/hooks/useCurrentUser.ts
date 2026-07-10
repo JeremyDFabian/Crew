@@ -1,11 +1,13 @@
 import { useProfile } from './useProfile'
+import { loadAuth } from '../lib/auth'
 import { CURRENT_USER } from '../mocks/sessions'
 import type { Member } from '../lib/types'
 
 export function useCurrentUser(): Member {
   const profile = useProfile()
-  if (!profile) return CURRENT_USER
+  const id = loadAuth()?.userId ?? CURRENT_USER.id
+  if (!profile) return { id, name: CURRENT_USER.name }
   const name =
     profile.displayName?.trim() || profile.firstName.trim() || CURRENT_USER.name
-  return { id: CURRENT_USER.id, name }
+  return { id, name }
 }
