@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const usersRouter = require('./routes/users');
+const sessionsRouter = require('./routes/sessions');
 
 const app = express();
 app.use(
@@ -15,6 +16,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use(usersRouter);
+app.use(sessionsRouter);
 
 // Express 5 forwards async route errors here on its own.
 app.use((err, req, res, next) => {
